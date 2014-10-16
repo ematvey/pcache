@@ -1,12 +1,4 @@
-#!/bin/bash
-
-if [ -e env.sh ]; then
-    source env.sh;
-else
-    GOROOT="/opt/go"
-fi
-
-PATH="$PATH:$GOROOT/bin"
+#!/usr/bin/env sh
 GOPATH="`pwd`"
 
 go get github.com/garyburd/redigo/redis

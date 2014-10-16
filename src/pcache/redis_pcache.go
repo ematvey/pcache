@@ -4,17 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/garyburd/redigo/redis"
 	"time"
+
+	"github.com/garyburd/redigo/redis"
 )
 
-type RedisCache struct {
+type RedisPCache struct {
 	Prefix string
 	Pool   *redis.Pool
 }
 
-func RedisCacheNew(prefix, network, addr string) RedisCache {
-	return RedisCache{
+func RedisPCacheNew(prefix, network, addr string) RedisPCache {
+	return RedisPCache{
 		prefix,
 		&redis.Pool{
 			MaxIdle:     3,
@@ -31,14 +32,14 @@ func RedisCacheNew(prefix, network, addr string) RedisCache {
 }
 
 func CacheNew(prefix, network, addr string) Cache {
-	return Cache(RedisCacheNew(prefix, network, addr))
+	return Cache(RedisPCacheNew(prefix, network, addr))
 }
 
-func (c RedisCache) formatCacheKey(key string) string {
+func (c RedisPCache) formatCacheKey(key string) string {
 	return fmt.Sprintf("%+v.%+v", c.Prefix, key)
 }
 
-func (c RedisCache) restore(pulled, target interface{}) error {
+func (c RedisPCache) restore(pulled, target interface{}) error {
 	if pulled != nil || target != nil {
 		raw_bytes, ok := pulled.([]byte)
 		if !ok {
@@ -50,7 +51,7 @@ func (c RedisCache) restore(pulled, target interface{}) error {
 }
 
 // Cache *item* as *key* with expiration *expire*
-func (c RedisCache) Set(key string, item interface{}, expire time.Duration) error {
+func (c RedisPCache) Set(key string, item interface{}, expire time.Duration) error {
 	var conn = c.Pool.Get()
 	defer conn.Close()
 	cacheKey := c.formatCacheKey(key)
@@ -68,7 +69,7 @@ func (c RedisCache) Set(key string, item interface{}, expire time.Duration) erro
 }
 
 // Retrieve item under *key* and unmarshal it into *target*
-func (c RedisCache) Get(key string, target interface{}) error {
+func (c RedisPCache) Get(key string, target interface{}) error {
 	var conn = c.Pool.Get()
 	defer conn.Close()
 	cacheKey := c.formatCacheKey(key)
@@ -80,7 +81,7 @@ func (c RedisCache) Get(key string, target interface{}) error {
 }
 
 // Check ttl of item under the *key*
-func (c RedisCache) Ttl(key string) (ttl time.Duration, err error) {
+func (c RedisPCache) Ttl(key string) (ttl time.Duration, err error) {
 	var conn = c.Pool.Get()
 	defer conn.Close()
 	cacheKey := c.formatCacheKey(key)
@@ -93,25 +94,28 @@ func (c RedisCache) Ttl(key string) (ttl time.Duration, err error) {
 	return
 }
 
-func (c RedisCache) Proxy(
+func (c RedisPCache) Proxy(
 	key string,
 
 	target interface{},
 	fetcher func() (interface{}, error),
+	validator func(interface{}) bool,
 
 	expire time.Duration,
 	refresh time.Duration,
 	throttle time.Duration,
 	timeout time.Duration,
 ) error {
-	store := redisCacheBackend{pool: c.Pool, prefix: c.Prefix}
+	store := redisKeyValueStore{pool: c.Pool, prefix: c.Prefix}
 	locker := redisLocker{c.Pool}
-	return proxy(
+	return ProxyCall(
 		store, locker,
 
 		c.formatCacheKey(key),
 		target,
 		fetcher,
+		validator,
+
 		expire,
 		refresh,
 		throttle,

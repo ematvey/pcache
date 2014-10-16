@@ -4,27 +4,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/garyburd/redigo/redis"
 	"math/rand"
-	"os"
 	"strconv"
 	"time"
+
+	"github.com/garyburd/redigo/redis"
 )
 
-type redisCacheBackend struct {
+type redisKeyValueStore struct {
 	pool   *redis.Pool
 	prefix string
 }
 
-func (r redisCacheBackend) Get(
+func (r redisKeyValueStore) Get(
 	key string, target interface{},
 ) (
 	retrieved bool, creation_time *time.Time, last_fetch_time *time.Time,
 ) {
-	os.Stdout.Write([]byte("redisCacheBackend.Get started\n"))
-	defer func() {
-		os.Stdout.Write([]byte(fmt.Sprintf("redisCacheBackend.Get done (retrieved: %+v, created: %+v, fetch: %+v)\n", retrieved, creation_time, last_fetch_time)))
-	}()
 	var conn = r.pool.Get()
 	defer conn.Close()
 	cacheKey := key
@@ -63,11 +59,7 @@ func (r redisCacheBackend) Get(
 	}
 	return
 }
-func (r redisCacheBackend) Set(key string, item interface{}, expire time.Duration) error {
-	os.Stdout.Write([]byte("redisCacheBackend.Set started\n"))
-	defer func() {
-		os.Stdout.Write([]byte("redisCacheBackend.Set done\n"))
-	}()
+func (r redisKeyValueStore) Set(key string, item interface{}, expire time.Duration) error {
 	var conn = r.pool.Get()
 	defer conn.Close()
 	cacheKey := key
@@ -88,17 +80,13 @@ type redisLocker struct {
 }
 
 func (l redisLocker) IsLocked(key string) bool {
-	os.Stdout.Write([]byte("redisLocker.IsLocked started\n"))
-	defer func() {
-		os.Stdout.Write([]byte("redisLocker.IsLocked done\n"))
-	}()
 	var conn = l.pool.Get()
 	defer conn.Close()
 	lock_key := key + ".lock"
 	lock, _ := conn.Do("GET", lock_key)
 	return lock != nil
 }
-func (l redisLocker) AcquireLock(key string, timeout time.Duration) *redisLock {
+func (l redisLocker) AcquireLock(key string, timeout time.Duration) Lock {
 	var conn = l.pool.Get()
 	defer conn.Close()
 	lock_key := key + ".lock"
@@ -107,7 +95,7 @@ func (l redisLocker) AcquireLock(key string, timeout time.Duration) *redisLock {
 	if lock == nil || lock_err != nil {
 		return nil
 	} else {
-		return &redisLock{&l, key, combo}
+		return Lock(redisLock{&l, key, combo})
 	}
 }
 func (l redisLocker) WaitForRelease(key string) (released bool) {

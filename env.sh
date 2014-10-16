@@ -1,1 +1,0 @@
-GOROOT="$GOROOT"

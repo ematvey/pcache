@@ -1,4 +1,4 @@
-// Proxy - universal cache filling algorithm
+// ProxyCall - universal cache filling algorithm
 //
 // - if cache contains target item:
 // -- return it
@@ -20,13 +20,31 @@ import (
 	"time"
 )
 
-func proxy(
-	store redisCacheBackend,
-	locker redisLocker,
+type Store interface {
+	Get(string, interface{}) (bool, *time.Time, *time.Time) // (key, target) -> (retrieved, creation_time, last_fetch_time)
+	Set(string, interface{}, time.Duration) error           // (key, item, expire) -> error
+}
+
+type Locker interface {
+	IsLocked(string) bool
+	AcquireLock(string, time.Duration) Lock // (key, timeout) -> Lock
+	WaitForRelease(string) bool             // key -> was_released
+}
+
+type Lock interface {
+	Release()
+}
+
+// for lack of better name, i give you ProxyCall
+func ProxyCall(
+	store Store,
+	locker Locker,
 
 	key string,
 	target interface{},
+
 	fetcher func() (interface{}, error),
+	validator func(interface{}) bool,
 
 	expire time.Duration,
 	refresh time.Duration,

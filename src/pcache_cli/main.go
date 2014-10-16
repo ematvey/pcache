@@ -7,12 +7,22 @@ import (
 )
 
 func main() {
-	ch := pcache.RedisCacheNew("test", "tcp", "localhost:6379")
+	ch := pcache.RedisPCacheNew("test", "tcp", "localhost:6379")
 	var tgt string
 	err := ch.Proxy(
 		"key",
 		&tgt,
 		func() (interface{}, error) { time.Sleep(time.Second * 3); return "abc", nil },
+		func(result interface{}) bool {
+			str, ok := result.(string)
+			if !ok {
+				return false
+			}
+			if str == "" {
+				return false
+			}
+			return true
+		},
 		time.Second*10,
 		time.Second*3,
 		time.Second*1,
