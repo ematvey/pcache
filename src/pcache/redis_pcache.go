@@ -31,10 +31,6 @@ func RedisPCacheNew(prefix, network, addr string) RedisPCache {
 	}
 }
 
-func CacheNew(prefix, network, addr string) Cache {
-	return Cache(RedisPCacheNew(prefix, network, addr))
-}
-
 func (c RedisPCache) formatCacheKey(key string) string {
 	return fmt.Sprintf("%+v.%+v", c.Prefix, key)
 }
