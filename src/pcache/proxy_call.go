@@ -1,4 +1,4 @@
-// ProxyCall - universal cache filling algorithm
+// PCache - universal cache filling algorithm
 //
 // - if cache contains target item:
 // -- return it
@@ -16,6 +16,7 @@ package pcache
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 )
@@ -35,8 +36,7 @@ type Lock interface {
 	Release()
 }
 
-// for lack of better name, i give you ProxyCall
-func ProxyCall(
+func PCacheCall(
 	store Store,
 	locker Locker,
 
@@ -47,7 +47,7 @@ func ProxyCall(
 	validator func(interface{}) bool,
 
 	expire time.Duration,
-	refresh time.Duration,
+	ttl time.Duration,
 	throttle time.Duration,
 	timeout time.Duration,
 ) error {
@@ -75,10 +75,14 @@ func ProxyCall(
 				ch <- getAfterRelease()
 				return
 			}
+			defer lock.Release()
 			item, _ := fetcher()
-			ch <- item
-			store.Set(key, item, expire)
-			lock.Release()
+			if validator(item) == true {
+				ch <- item
+				store.Set(key, item, expire)
+			} else {
+				ch <- nil
+			}
 		}()
 		return ch
 	}
@@ -88,17 +92,25 @@ func ProxyCall(
 	switch {
 
 	case retrieved:
-		if creationTime != nil {
-			now := time.Now()
-			age := now.Sub(*creationTime)
-			sinceLastFetch := now.Sub(*lastFetchTime)
-			if age > refresh {
+		fmt.Printf("validator: %+v", validator)
+		var invalid = false
+		if validator != nil {
+			invalid = validator(target) == false
+		}
+		if creationTime != nil || invalid {
+			var now = time.Now()
+			var age = now.Sub(*creationTime)
+			var sinceLastFetch = now.Sub(*lastFetchTime)
+			if age > ttl || invalid {
 				if sinceLastFetch > throttle {
 					go func() {
 						<-fetchAndSet()
 					}()
 				}
 			}
+		}
+		if invalid {
+			return errors.New("invalid item retrieved")
 		}
 		return nil
 
@@ -111,13 +123,16 @@ func ProxyCall(
 
 	default:
 		if lastFetchTime != nil {
-			sinceLastFetch := time.Now().Sub(*lastFetchTime)
+			var sinceLastFetch = time.Now().Sub(*lastFetchTime)
 			if sinceLastFetch < throttle {
 				return errors.New("refresh throttled while item is nil")
 			}
 		}
 		select {
 		case result := <-fetchAndSet():
+			if result == nil {
+				return errors.New("invalid item fetched")
+			}
 			return setToValue(target, result)
 		case <-time.After(timeout):
 			return errors.New("timeout")
