@@ -1,18 +1,12 @@
-// ProxyCache - universal cache filling algorithm
-// ==============================================
-//
-// - if cache contains target item:
-// -- return it
-// -- if its age is more then obsoletion duration, launch re-*fetch*
-// - if cache doesn't contain target item or item is null or is invalid (validation checker might be passed):
-// -- launch *fetch*. if it returns before *timeout* and without error, return item, otherwise nil
-//
-// fetch:
-// - check fetching lock, if exists, wait until it is released or *timeout*, take item from cache and return it
-// - otherwise, check last_fetch timestamp, if it is > *throttle*, return nil
-// - otherwise, call fetcher into separate goroutine and update last_fetch timestamp;
-//   if fetcher completes before timeout, return item, otherwise return nil;
-//   when fetcher completes, put item into cache deferred action;
+/*
+ProxyCache - universal cache filling algorithm
+
+Basic idea is as follows: instead of trying to making cache lookups and determining if you
+should perform some expensive calculation, you pass calculation fetcher as a delegate into
+ProxyCache which will figure out caching state by itself and use fetcher if necessary.
+
+Algorithm considers various parameters that might affect caching behavior:
+*/
 package pcache
 
 import (
