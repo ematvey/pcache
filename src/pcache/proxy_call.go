@@ -1,10 +1,11 @@
-// PCache - universal cache filling algorithm
+// ProxyCache - universal cache filling algorithm
+// ==============================================
 //
 // - if cache contains target item:
 // -- return it
-// -- if its age is more then obsoletion duration, launch re-{{fetch}}
+// -- if its age is more then obsoletion duration, launch re-*fetch*
 // - if cache doesn't contain target item or item is null or is invalid (validation checker might be passed):
-// -- launch {{fetch}}. if it returns before *timeout* and without error, return item, otherwise nil
+// -- launch *fetch*. if it returns before *timeout* and without error, return item, otherwise nil
 //
 // fetch:
 // - check fetching lock, if exists, wait until it is released or *timeout*, take item from cache and return it
@@ -21,6 +22,7 @@ import (
 	"time"
 )
 
+// Storage backend is assumed to implement some kind of cache replacement algorithm
 type Store interface {
 	Get(string, interface{}) (bool, *time.Time, *time.Time) // (key, target) -> (retrieved, creation_time, last_fetch_time)
 	Set(string, interface{}, time.Duration) error           // (key, item, expire) -> error
