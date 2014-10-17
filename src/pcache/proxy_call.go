@@ -22,6 +22,7 @@ import (
 )
 
 type Fetcher func() (interface{}, error)
+type Validator func(interface{}) bool
 
 // Storage backend is assumed to implement some kind of cache replacement algorithm
 type Store interface {
@@ -42,7 +43,7 @@ type Lock interface {
 type ResourceSpec struct {
 	Store                          Store
 	Locker                         Locker
-	Validator                      func(interface{}) bool
+	Validator                      Validator
 	Expire, Ttl, Throttle, Timeout time.Duration
 }
 
