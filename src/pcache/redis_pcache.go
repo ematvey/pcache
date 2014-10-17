@@ -42,25 +42,20 @@ func (c RedisPCache) Call(
 	validator func(interface{}) bool,
 
 	expire time.Duration,
-	refresh time.Duration,
+	ttl time.Duration,
 	throttle time.Duration,
 	timeout time.Duration,
 ) error {
-	store := redisKeyValueStore{pool: c.Pool, prefix: c.Prefix}
-	locker := redisLocker{c.Pool}
-	return PCacheCall(
-		store, locker,
-
-		c.formatCacheKey(key),
-		target,
-		fetcher,
-		validator,
-
-		expire,
-		refresh,
-		throttle,
-		timeout,
-	)
+	spec := ResourceSpec{
+		Locker:    redisLocker{c.Pool},
+		Store:     redisKeyValueStore{pool: c.Pool, prefix: c.Prefix},
+		Validator: validator,
+		Expire:    expire,
+		Ttl:       ttl,
+		Throttle:  throttle,
+		Timeout:   timeout,
+	}
+	return ProxyCache(c.formatCacheKey(key), target, fetcher, &spec)
 }
 
 type redisKeyValueStore struct {
