@@ -81,7 +81,7 @@ func ProxyCache(key string, target interface{}, fetcher Fetcher, spec *ResourceS
 			}
 			defer lock.Release()
 			item, _ := fetcher()
-			if spec.Validator(item) == true {
+			if spec.Validator == nil || spec.Validator(item) == true {
 				ch <- item
 				spec.Store.Set(key, item, expire)
 			} else {
