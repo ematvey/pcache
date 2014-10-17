@@ -5,7 +5,11 @@ Basic idea is as follows: instead of trying to making cache lookups and determin
 should perform some expensive calculation, you pass calculation fetcher as a delegate into
 ProxyCache which will figure out caching state by itself and use fetcher if necessary.
 
-Algorithm considers various parameters that might affect caching behavior:
+Parameters
+
+Algorithm considers various parameters that might affect caching behavior: item expiration,
+ttl (specified per-request), request timeout, throttle time between fetcher calls, results
+of validation (preformed by validator func).
 */
 package pcache
 
