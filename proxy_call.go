@@ -31,9 +31,9 @@ type Store interface {
 }
 
 type Locker interface {
-	IsLocked(string) bool
-	AcquireLock(string, time.Duration) Lock // (key, timeout) -> Lock
-	WaitForRelease(string) bool             // key -> was_released
+	Locked(string) bool
+	Lock(string, time.Duration) Lock // (key, timeout) -> Lock
+	Wait(string) bool                // key -> was_released
 }
 
 type Lock interface {
@@ -58,7 +58,7 @@ func ProxyCache(key string, target interface{}, fetcher Fetcher, spec *ResourceS
 	var getAfterRelease = func() bool {
 		done_ch := make(chan bool, 1)
 		go func() {
-			done_ch <- spec.Locker.WaitForRelease(key)
+			done_ch <- spec.Locker.Wait(key)
 		}()
 		select {
 		case <-time.After(spec.Timeout):
@@ -74,7 +74,7 @@ func ProxyCache(key string, target interface{}, fetcher Fetcher, spec *ResourceS
 	var fetchAndSet = func() chan interface{} {
 		ch := make(chan interface{}, 1)
 		go func() {
-			lock := spec.Locker.AcquireLock(key, spec.Timeout)
+			lock := spec.Locker.Lock(key, spec.Timeout)
 			if lock == nil {
 				ch <- getAfterRelease()
 				return
@@ -117,7 +117,7 @@ func ProxyCache(key string, target interface{}, fetcher Fetcher, spec *ResourceS
 		}
 		return nil
 
-	case spec.Locker.IsLocked(key):
+	case spec.Locker.Locked(key):
 		if getAfterRelease() {
 			return nil
 		} else {

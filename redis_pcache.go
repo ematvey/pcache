@@ -126,14 +126,14 @@ type redisLocker struct {
 	pool *redis.Pool
 }
 
-func (l redisLocker) IsLocked(key string) bool {
+func (l redisLocker) Locked(key string) bool {
 	var conn = l.pool.Get()
 	defer conn.Close()
 	lock_key := key + ".lock"
 	lock, _ := conn.Do("GET", lock_key)
 	return lock != nil
 }
-func (l redisLocker) AcquireLock(key string, timeout time.Duration) Lock {
+func (l redisLocker) Lock(key string, timeout time.Duration) Lock {
 	var conn = l.pool.Get()
 	defer conn.Close()
 	lock_key := key + ".lock"
@@ -145,7 +145,7 @@ func (l redisLocker) AcquireLock(key string, timeout time.Duration) Lock {
 		return Lock(redisLock{&l, key, combo})
 	}
 }
-func (l redisLocker) WaitForRelease(key string) (released bool) {
+func (l redisLocker) Wait(key string) (released bool) {
 	var conn = l.pool.Get()
 	defer conn.Close()
 	lock_key := key + ".lock"
